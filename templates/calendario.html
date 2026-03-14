@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Calendario{% endblock %}
+
+{% block content %}
+<div class="calendar-shell space-y-3 sm:space-y-4">
+
+  <div class="bg-gradient-to-r from-primary-light/30 via-white to-primary-light/20 border border-primary/10 rounded-2xl p-3 sm:p-4 shadow-sm">
+    <div class="flex items-start justify-between gap-3 flex-wrap">
+      <div class="flex items-center gap-2">
+        <span class="w-10 h-10 rounded-xl bg-white text-primary flex items-center justify-center shadow"><i class="fas fa-calendar-day"></i></span>
+        <div>
+          <p class="text-xs text-gray-500">Calendario</p>
+          <p id="month-label" class="text-lg font-semibold text-gray-800 leading-tight"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <div class="flex w-full sm:w-auto gap-2">
+          <button id="prev-month" class="flex-1 sm:flex-none px-3 py-2 bg-white rounded-lg shadow text-gray-700 touch-target" aria-label="Mes anterior"><i class="fas fa-chevron-left"></i></button>
+          <button id="next-month" class="flex-1 sm:flex-none px-3 py-2 bg-white rounded-lg shadow text-gray-700 touch-target" aria-label="Mes siguiente"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="calendar-wrapper mt-2">
+    <div id="calendar" class="calendar-grid gap-2 sm:gap-3"></div>
+  </div>
+
+  <section class="agenda-day-panel border border-primary/10 rounded-2xl bg-white/85 shadow-sm overflow-hidden">
+    <div class="bg-gradient-to-r from-primary-light/20 via-white to-primary-light/10 px-4 py-3 border-b border-primary/10">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50">Agenda del día</p>
+      <div class="flex items-center justify-between gap-3 mt-1">
+        <h3 id="selected-day-label" class="text-sm sm:text-base font-semibold text-gray-800">Cargando...</h3>
+        <span id="selected-day-count" class="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">--</span>
+      </div>
+    </div>
+    <div id="selected-day-body" class="px-4 py-4 space-y-3 text-sm overflow-y-auto" style="max-height: 38vh; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;"></div>
+  </section>
+
+  <button id="btn-nueva" class="fixed bottom-4 right-4 bg-primary text-white rounded-full w-14 h-14 shadow-xl flex items-center justify-center text-2xl sm:static sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-xl sm:text-base">
+    <i class="fas fa-plus sm:mr-2"></i><span class="hidden sm:inline">Nueva cita</span>
+  </button>
+
+  <!-- Modal: citas del día -->
+  <div id="day-modal" class="fixed inset-0 hidden items-center justify-center z-50">
+    <div class="modal-backdrop absolute inset-0"></div>
+    <div class="bg-white rounded-2xl w-[92%] sm:w-[420px] relative z-10 shadow-2xl overflow-hidden">
+      <!-- Header del modal -->
+      <div class="bg-gradient-to-r from-primary/10 to-primary/5 px-5 py-4 flex justify-between items-center border-b border-primary/10">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50">Agenda</p>
+          <h3 id="modal-date" class="font-semibold text-gray-800 text-base"></h3>
+        </div>
+        <button id="close-modal" class="w-8 h-8 rounded-xl bg-white/80 flex items-center justify-center text-gray-400 hover:text-gray-600 transition shadow-sm">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+      </div>
+      <div id="modal-body" class="px-5 py-4 space-y-2 text-sm max-h-72 overflow-y-auto"></div>
+      <div class="px-5 pb-5">
+        <button id="modal-add" class="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-medium hover:bg-primary-dark transition shadow-md">
+          <i class="fas fa-plus text-sm"></i> Agregar cita
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: formulario de cita -->
+  <div id="form-modal" class="fixed inset-0 hidden items-center justify-center z-50">
+    <div class="modal-backdrop absolute inset-0"></div>
+    <div class="bg-white rounded-2xl w-[92%] sm:w-[440px] relative z-10 shadow-2xl max-h-[92vh] overflow-auto">
+      <!-- Header -->
+      <div class="bg-white px-5 py-4 flex justify-between items-center border-b border-primary/10 sticky top-0 z-30 shadow-sm">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50">Cita</p>
+          <h3 id="form-title" class="font-semibold text-gray-800 text-base">Nueva cita</h3>
+        </div>
+        <button id="close-form" class="w-8 h-8 rounded-xl bg-white/80 flex items-center justify-center text-gray-400 hover:text-gray-600 transition shadow-sm">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+      </div>
+      <!-- Body -->
+      <form id="cita-form" class="px-5 py-4 space-y-4">
+        <input type="hidden" id="cita-id" value="">
+        <!-- Paciente -->
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-2">Paciente</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Nombre</label>
+              <input id="nombre" class="input-field" placeholder="Nombre" required>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Apellidos</label>
+              <input id="apellidos" class="input-field" placeholder="Apellidos" required>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Teléfono</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-primary/50 text-sm"><i class="fas fa-phone"></i></span>
+              <input id="telefono" class="input-field pl-9" placeholder="10 dígitos" required>
+            </div>
+          </div>
+        </div>
+        <!-- Fecha y hora -->
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-2">Fecha y hora</p>
+          <div class="mb-3">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
+            <input type="date" id="fecha" class="input-field" required>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Hora inicio</label>
+              <input type="time" id="hora" class="input-field" step="300" required>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Hora fin</label>
+              <input type="time" id="hora_fin" class="input-field" step="300" required>
+            </div>
+          </div>
+          <p class="text-[10px] text-gray-400 mt-1"><i class="fas fa-magic text-primary/40"></i> La hora fin se calcula al elegir tipo de cita</p>
+        </div>
+        <!-- Tipo y notas -->
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-2">Detalles</p>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de cita</label>
+            <input id="tipo_cita_texto" class="input-field" placeholder="Escribe el procedimiento (ej. Limpieza de brackets)..." autocomplete="off">
+            <select id="tipo_cita_select" class="input-field mt-2">
+              <option value="">O elige uno guardado...</option>
+            </select>
+          </div>
+          <div id="custom-tipo-section" class="hidden mt-2">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Duración estimada (min)</label>
+            <input
+              type="number"
+              id="custom-tipo-duracion"
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              value="30"
+              min="5"
+              max="300"
+              step="5"
+              placeholder="Ej. 30"
+            >
+          </div>
+          <div class="mt-3">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Notas</label>
+            <textarea id="notas" class="input-field" rows="2" placeholder="Notas adicionales (opcional)"></textarea>
+          </div>
+        </div>
+        <!-- Acciones -->
+        <div class="flex gap-3 pt-1 pb-2">
+          <button type="submit" class="flex-1 flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-medium hover:bg-primary-dark transition shadow-md">
+            <i class="fas fa-check text-sm"></i> Guardar
+          </button>
+          <button type="button" id="delete-btn" class="hidden flex items-center justify-center gap-2 bg-rose-50 text-rose-500 py-3 px-4 rounded-xl hover:bg-rose-100 transition font-medium">
+            <i class="fas fa-trash text-sm"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+{% endblock %}

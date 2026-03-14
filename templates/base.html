@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Consultorio Dental{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#14b8a6',
+                        'primary-dark': '#0d9488',
+                        'primary-light': '#5eead4',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=4">
+    
+    <style>
+        * { font-family: 'Space Grotesk', sans-serif; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #14b8a6;
+            border-radius: 3px;
+        }
+        
+        /* Animaciones */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(100%); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Modal backdrop */
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Input styles */
+        .input-field {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid rgb(229 231 235);
+            border-radius: 0.75rem;
+            background: #ffffff;
+            color: rgb(31 41 55);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+            min-width: 0;
+        }
+
+        .input-field::placeholder {
+            color: rgb(156 163 175);
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #14b8a6;
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+        }
+        
+        .btn-primary {
+            @apply w-full bg-primary text-white py-3 px-6 rounded-xl font-medium hover:bg-primary-dark transition-colors duration-200 active:scale-95;
+        }
+        
+        /* Calendar day with appointments - indicator line via .indicator div */
+        
+        /* Touch friendly */
+        @media (max-width: 640px) {
+            .touch-target {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="min-h-screen bg-gradient-to-br from-white via-[#e6fff7] to-[#d5f2ff]">
+    {% set auth_page = request.endpoint == 'main.login' %}
+    {% if auth_page %}
+    <main class="min-h-screen">
+        {{ self.content() }}
+    </main>
+    {% else %}
+    <div id="app" class="min-h-screen flex">
+        <!-- Sidebar (mobile hidden by default) -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 sidebar-panel transform -translate-x-full transition-transform duration-200 sm:translate-x-0 sm:relative">
+            <div class="px-5 py-5 flex items-center gap-3 border-b border-primary/10">
+                <div class="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <svg viewBox="0 0 120 140" class="w-6 h-6" aria-label="Logo">
+                        <path d="M60 30c0-8 7-15 15-15 8 0 15 7 15 15 0 12-10 20-30 36-20-16-30-24-30-36 0-8 7-15 15-15 8 0 15 7 15 15Z" fill="none" stroke="#0d9488" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M46 76c-4 20 2 34 10 34 6 0 8-10 12-22 3-9 8-14 14-16" fill="none" stroke="#0d9488" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h2 class="text-primary font-semibold text-base leading-snug">Consultorio Dental Castillo</h2>
+            </div>
+
+            <nav class="px-3 py-4 space-y-1">
+                <a href="{{ url_for('main.lista_citas') }}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-primary/80 hover:text-primary hover:bg-primary/10 transition font-medium">
+                    <i class="fas fa-list w-4 text-center text-primary/60"></i>
+                    <span>Citas</span>
+                </a>
+            </nav>
+
+            <!-- Stats panel in sidebar -->
+            <div class="mx-3 rounded-2xl bg-white border border-primary/20 shadow-sm p-3 space-y-2">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 px-1">Resumen de hoy</p>
+                <div class="flex items-center justify-between bg-primary/10 hover:bg-primary/20 transition rounded-xl px-3 py-2.5">
+                    <div class="flex items-center gap-2 text-gray-600 text-xs font-medium"><i class="fas fa-calendar-check text-primary"></i> Citas hoy</div>
+                    <span id="stat-hoy" class="text-xl font-bold text-primary">—</span>
+                </div>
+                <div class="bg-primary/10 hover:bg-primary/20 transition rounded-xl px-3 py-2.5">
+                    <div class="flex items-center gap-2 text-gray-400 text-[10px] font-semibold mb-0.5 uppercase tracking-wide"><i class="fas fa-clock text-primary/60"></i> Próxima cita</div>
+                    <p id="stat-proxima" class="text-xs font-semibold text-gray-700 truncate">—</p>
+                </div>
+                <div class="flex items-center justify-between bg-primary/10 hover:bg-primary/20 transition rounded-xl px-3 py-2.5">
+                    <div class="flex items-center gap-2 text-gray-600 text-xs font-medium"><i class="fas fa-calendar-alt text-primary"></i> Este mes</div>
+                    <span id="stat-mes" class="text-xl font-bold text-primary">—</span>
+                </div>
+            </div>
+
+            <!-- Configuración y Cerrar sesión al fondo -->
+            <div class="px-3 mt-auto pb-4 pt-4 space-y-1">
+                <button id="btn-settings" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500/80 hover:text-gray-700 hover:bg-gray-100/60 transition font-medium text-sm">
+                    <i class="fas fa-sliders-h w-4 text-center text-gray-400"></i>
+                    <span>Configuración</span>
+                </button>
+                <a href="{{ url_for('main.logout') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-400/80 hover:text-rose-500 hover:bg-rose-50/60 transition font-medium text-sm">
+                    <i class="fas fa-sign-out-alt w-4 text-center text-rose-300"></i>
+                    <span>Cerrar sesión</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Mobile menu toggle -->
+        <button id="btn-menu" class="sm:hidden fixed top-3 left-3 z-50 w-10 h-10 flex items-center justify-center rounded-xl bg-white shadow-md text-primary border border-primary/10">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Main content -->
+        <div class="flex-1 min-w-0">
+            <main class="page-shell px-2 py-3 pt-16 sm:p-4 sm:pt-4">
+                {{ self.content() }}
+            </main>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 hidden items-center justify-center z-50">
+      <div class="modal-backdrop absolute inset-0"></div>
+      <div class="bg-white rounded-2xl w-full sm:w-[400px] relative z-10 shadow-2xl max-h-[85vh] overflow-y-auto mx-4">
+        <div class="bg-gradient-to-r from-primary/10 to-primary/5 px-5 py-4 flex justify-between items-center border-b border-primary/10 sticky top-0 bg-white z-10">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50">Consultorio</p>
+            <h3 class="font-semibold text-gray-800 text-base">Configuración</h3>
+          </div>
+          <button id="close-settings" class="w-8 h-8 rounded-xl bg-white/80 flex items-center justify-center text-gray-400 hover:text-gray-600 transition shadow-sm">
+            <i class="fas fa-times text-sm"></i>
+          </button>
+        </div>
+        <div class="px-5 py-4 space-y-4">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-3">Horario laboral</p>
+                        <div class="space-y-3 bg-primary/5 rounded-xl p-3 border border-primary/10">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[11px] text-gray-500 mb-1">Entre semana inicia</label>
+                                    <input type="time" id="cfg-semana-inicio" class="input-field py-2.5">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] text-gray-500 mb-1">Entre semana fin</label>
+                                    <input type="time" id="cfg-semana-fin" class="input-field py-2.5">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[11px] text-gray-500 mb-1">Fin semana inicia</label>
+                                    <input type="time" id="cfg-finde-inicio" class="input-field py-2.5">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] text-gray-500 mb-1">Fin semana fin</label>
+                                    <input type="time" id="cfg-finde-fin" class="input-field py-2.5">
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 text-xs">
+                                <label class="inline-flex items-center gap-2 text-gray-600"><input id="cfg-trabaja-sabado" type="checkbox" class="accent-primary"> Trabaja sábado</label>
+                                <label class="inline-flex items-center gap-2 text-gray-600"><input id="cfg-trabaja-domingo" type="checkbox" class="accent-primary"> Trabaja domingo</label>
+                            </div>
+                        </div>
+                    </div>
+
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-3">Duración por tipo de cita</p>
+            <div id="settings-tipos-list" class="space-y-2"></div>
+          </div>
+          <div class="border-t border-gray-100 pt-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-2">Agregar nuevo tipo</p>
+            <div class="flex gap-2">
+              <input id="new-tipo-nombre" class="input-field flex-1" placeholder="Ej. Blanqueamiento...">
+              <input type="number" id="new-tipo-duracion" class="input-field w-20 text-center" value="30" min="5" max="300">
+              <button id="btn-add-tipo" class="bg-primary text-white px-3 rounded-xl text-sm font-medium hover:bg-primary-dark transition flex-shrink-0">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-1">Minutos de duración estimada</p>
+          </div>
+
+                    <div class="border-t border-gray-100 pt-4">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-2">Cambiar contraseña</p>
+                        <div class="space-y-2">
+                            <input id="cfg-pass-actual" type="password" class="input-field" placeholder="Contraseña actual">
+                            <input id="cfg-pass-nueva" type="password" class="input-field" placeholder="Nueva contraseña (mínimo 6)">
+                            <button id="btn-change-pass" class="w-full bg-gray-800 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-black transition">Actualizar contraseña</button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100 pt-4">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50 mb-2">Clave de recuperación</p>
+                        <div class="space-y-2">
+                            <input id="cfg-recovery-key" type="password" class="input-field" placeholder="Define una clave de recuperación">
+                            <input id="cfg-recovery-hint" type="text" class="input-field" placeholder="Pista opcional (ej. palabra que solo tú recuerdes)">
+                            <button id="btn-save-recovery" class="w-full bg-primary/90 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-primary transition">Guardar clave de recuperación</button>
+                            <p id="cfg-recovery-status" class="text-[11px] text-gray-400"></p>
+                        </div>
+                    </div>
+
+          <button id="save-settings" class="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-medium hover:bg-primary-dark transition shadow-md">
+            <i class="fas fa-save text-sm"></i> Guardar cambios
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
+    <script>
+        // Toast notification system
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColor = type === 'success' ? 'bg-green-500' : 
+                           type === 'error' ? 'bg-red-500' : 
+                           type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
+            
+            toast.className = `${bgColor} text-white px-6 py-3 rounded-xl shadow-lg fade-in flex items-center gap-2`;
+            
+            const icon = type === 'success' ? 'fa-check-circle' : 
+                        type === 'error' ? 'fa-exclamation-circle' : 
+                        type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+            
+            toast.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        // Fetch wrapper with error handling
+        async function fetchAPI(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Error en la solicitud');
+                }
+                
+                return data;
+            } catch (error) {
+                showToast(error.message, 'error');
+                throw error;
+            }
+        }
+    </script>
+    <script>
+        // Sidebar toggle for mobile
+        document.addEventListener('DOMContentLoaded', function () {
+            const btn = document.getElementById('btn-menu');
+            const sidebar = document.getElementById('sidebar');
+            if (btn && sidebar) {
+                btn.addEventListener('click', () => {
+                    if (sidebar.classList.contains('-translate-x-full')) {
+                        sidebar.classList.remove('-translate-x-full');
+                    } else {
+                        sidebar.classList.add('-translate-x-full');
+                    }
+                });
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+    <script>
+    // Load sidebar stats — global so calendar.js can call it after CRUD
+    async function loadStats(){
+        if(!document.getElementById('stat-hoy')) return;
+        const today = new Date();
+        const ymd = today.toISOString().slice(0,10);
+        const y = today.getFullYear();
+        const m = today.getMonth()+1;
+        try{
+            const hoy = await fetchAPI('/api/citas/dia/' + ymd);
+            document.getElementById('stat-hoy').textContent = hoy.length;
+            if(hoy.length > 0){
+                const now = today.getHours()*60 + today.getMinutes();
+                const prox = hoy.find(c=>{ const [hh,mm]=c.hora_inicio.split(':').map(Number); return hh*60+mm>=now; }) || hoy[0];
+                document.getElementById('stat-proxima').textContent = prox.hora_formateada + ' · ' + prox.paciente_completo.split(' ')[0];
+            } else {
+                document.getElementById('stat-proxima').textContent = 'Sin citas';
+            }
+        }catch(e){}
+        try{
+            const mes = await fetchAPI(`/api/citas/mes/${y}/${m}`);
+            const total = Object.values(mes).reduce((acc,arr)=>acc+arr.length,0);
+            document.getElementById('stat-mes').textContent = total;
+        }catch(e){}
+    }
+    document.addEventListener('DOMContentLoaded', loadStats);
+    </script>
+    <script>
+    // Settings modal
+    document.addEventListener('DOMContentLoaded', function(){
+      const settingsBtn = document.getElementById('btn-settings');
+      const settingsModal = document.getElementById('settings-modal');
+      const closeSettingsBtn = document.getElementById('close-settings');
+      if(!settingsBtn || !settingsModal) return;
+            function openSettingsModal(){ loadSettingsTipos(); loadHorarioConfig(); loadRecoveryInfo(); settingsModal.classList.remove('hidden'); settingsModal.classList.add('flex'); }
+      function closeSettingsModal(){ settingsModal.classList.add('hidden'); settingsModal.classList.remove('flex'); }
+      settingsBtn.addEventListener('click', openSettingsModal);
+      closeSettingsBtn.addEventListener('click', closeSettingsModal);
+      settingsModal.addEventListener('click', e=>{ if(e.target===settingsModal) closeSettingsModal(); });
+
+            async function loadHorarioConfig(){
+                try{
+                    const cfg = await fetchAPI('/api/configuracion/horario');
+                    document.getElementById('cfg-semana-inicio').value = cfg.semana_inicio;
+                    document.getElementById('cfg-semana-fin').value = cfg.semana_fin;
+                    document.getElementById('cfg-finde-inicio').value = cfg.fin_semana_inicio;
+                    document.getElementById('cfg-finde-fin').value = cfg.fin_semana_fin;
+                    document.getElementById('cfg-trabaja-sabado').checked = !!cfg.trabaja_sabado;
+                    document.getElementById('cfg-trabaja-domingo').checked = !!cfg.trabaja_domingo;
+                }catch(e){}
+            }
+
+      async function loadSettingsTipos(){
+        try{
+          const tipos = await fetchAPI('/api/tipos-cita');
+          const list = document.getElementById('settings-tipos-list');
+          list.innerHTML = '';
+          tipos.filter(t=>t.nombre!=='\u270f\ufe0f Escribir tipo...').forEach(t=>{
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 bg-primary/5 rounded-xl px-3 py-2.5';
+            row.innerHTML = `<span class="flex-1 text-sm text-gray-700 font-medium truncate">${t.nombre}</span>
+              <input type="number" data-id="${t.id}" class="tipo-dur w-16 text-center border border-gray-200 rounded-lg px-1 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" value="${t.duracion_minutos}" min="5" max="300">
+              <span class="text-xs text-gray-400">min</span>`;
+            list.appendChild(row);
+          });
+        }catch(e){}
+      }
+
+            async function loadRecoveryInfo(){
+                try{
+                    const info = await fetchAPI('/api/usuario/recovery-key');
+                    document.getElementById('cfg-recovery-hint').value = info.hint || '';
+                    document.getElementById('cfg-recovery-status').textContent = info.configured
+                        ? 'Ya hay una clave de recuperación configurada.'
+                        : 'Aún no hay clave de recuperación configurada.';
+                }catch(e){}
+            }
+      document.getElementById('save-settings').addEventListener('click', async()=>{
+        const inputs = document.querySelectorAll('.tipo-dur');
+        try{
+                    await fetchAPI('/api/configuracion/horario', {
+                        method:'PUT',
+                        body: JSON.stringify({
+                            semana_inicio: document.getElementById('cfg-semana-inicio').value,
+                            semana_fin: document.getElementById('cfg-semana-fin').value,
+                            fin_semana_inicio: document.getElementById('cfg-finde-inicio').value,
+                            fin_semana_fin: document.getElementById('cfg-finde-fin').value,
+                            trabaja_sabado: document.getElementById('cfg-trabaja-sabado').checked,
+                            trabaja_domingo: document.getElementById('cfg-trabaja-domingo').checked,
+                        })
+                    });
+          await Promise.all([...inputs].map(inp=>fetchAPI(`/api/tipos-cita/${inp.dataset.id}`,{method:'PUT',body:JSON.stringify({duracion_minutos:parseInt(inp.value,10)})})));
+          showToast('Configuraci\u00f3n guardada','success');
+          closeSettingsModal();
+                    if(window._refreshCalendarTipos) window._refreshCalendarTipos();
+                    if(window._refreshHorarioConfig) window._refreshHorarioConfig();
+        }catch(e){}
+      });
+      document.getElementById('btn-add-tipo').addEventListener('click', async()=>{
+        const n = document.getElementById('new-tipo-nombre').value.trim();
+        const d = parseInt(document.getElementById('new-tipo-duracion').value,10)||30;
+        if(!n){ showToast('Escribe el nombre del tipo','error'); return; }
+        try{
+          await fetchAPI('/api/tipos-cita',{method:'POST',body:JSON.stringify({nombre:n,duracion_minutos:d})});
+          showToast('Tipo agregado','success');
+          document.getElementById('new-tipo-nombre').value='';
+          document.getElementById('new-tipo-duracion').value='30';
+          loadSettingsTipos();
+          if(window._refreshCalendarTipos) window._refreshCalendarTipos();
+        }catch(e){}
+      });
+
+            document.getElementById('btn-change-pass').addEventListener('click', async()=>{
+                const actual = document.getElementById('cfg-pass-actual').value;
+                const nueva = document.getElementById('cfg-pass-nueva').value;
+                if(!actual || !nueva){ showToast('Completa ambas contraseñas','warning'); return; }
+                try{
+                    await fetchAPI('/api/usuario/cambiar-password', {method:'POST', body: JSON.stringify({actual_password: actual, nueva_password: nueva})});
+                    showToast('Contraseña actualizada','success');
+                    document.getElementById('cfg-pass-actual').value = '';
+                    document.getElementById('cfg-pass-nueva').value = '';
+                }catch(e){}
+            });
+
+            document.getElementById('btn-save-recovery').addEventListener('click', async()=>{
+                const recoveryKey = document.getElementById('cfg-recovery-key').value.trim();
+                const recoveryHint = document.getElementById('cfg-recovery-hint').value.trim();
+                if(!recoveryKey){ showToast('Escribe la clave de recuperación','warning'); return; }
+                try{
+                    await fetchAPI('/api/usuario/recovery-key', {method:'POST', body: JSON.stringify({recovery_key: recoveryKey, recovery_hint: recoveryHint})});
+                    showToast('Clave de recuperación guardada','success');
+                    document.getElementById('cfg-recovery-key').value = '';
+                    loadRecoveryInfo();
+                }catch(e){}
+            });
+    });
+    </script>
+</body>
+</html>
