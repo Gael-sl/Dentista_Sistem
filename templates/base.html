@@ -334,6 +334,28 @@
                         sidebar.classList.add('-translate-x-full');
                     }
                 });
+
+                // Cerrar menú al tocar fuera (solo móvil)
+                document.addEventListener('click', (e) => {
+                    const mobile = window.matchMedia('(max-width: 639px)').matches;
+                    if (!mobile) return;
+                    const menuOpen = !sidebar.classList.contains('-translate-x-full');
+                    if (!menuOpen) return;
+
+                    const clickInsideSidebar = sidebar.contains(e.target);
+                    const clickOnButton = btn.contains(e.target);
+                    if (!clickInsideSidebar && !clickOnButton) {
+                        sidebar.classList.add('-translate-x-full');
+                    }
+                });
+
+                // Cerrar menú al navegar por un enlace del sidebar
+                sidebar.querySelectorAll('a').forEach((link) => {
+                    link.addEventListener('click', () => {
+                        const mobile = window.matchMedia('(max-width: 639px)').matches;
+                        if (mobile) sidebar.classList.add('-translate-x-full');
+                    });
+                });
             }
         });
     </script>
